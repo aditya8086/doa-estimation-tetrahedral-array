@@ -4,15 +4,12 @@ import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-# Corrected paths
 CHUNK_DIR = r"C:\Users\csio\projects\new_gnn_project\4ChannelStackedChunk"
 ANALYSIS_DIR = r"C:\Users\csio\projects\new_gnn_project\outputs_4ChannelStackedChunk"
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
-# Initialize a summary list
 summary = []
 
-# Discover all chunk files
 chunk_files = sorted(f for f in os.listdir(CHUNK_DIR) if f.endswith(".npy"))
 
 for fname in tqdm(chunk_files, desc="Analyzing stacked chunks"):
@@ -39,12 +36,10 @@ for fname in tqdm(chunk_files, desc="Analyzing stacked chunks"):
         }
     summary.append(stats)
 
-# Save summary CSV
 summary_df = pd.DataFrame(summary)
 csv_path = os.path.join(ANALYSIS_DIR, "stacked_chunk_analysis.csv")
 summary_df.to_csv(csv_path, index=False)
 
-# Plot histogram of sample means for visualization
 valid_means = summary_df[summary_df["mean"] != "ERROR"]["mean"].astype(float)
 plt.hist(valid_means, bins=100)
 plt.title("Histogram of Chunk Means")

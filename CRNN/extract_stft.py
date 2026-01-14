@@ -4,28 +4,23 @@ import numpy as np
 from scipy.signal import stft
 from tqdm import tqdm
 
-# — PARAMETERS —
-input_dir    = r"C:\Users\csio\doa_project\dataset"   # your 4×N stacks
-features_dir = r"C:\Users\csio\doa_project\features"  # output folder for dB-scaled features
+input_dir    = r"C:\Users\csio\doa_project\dataset"   
+features_dir = r"C:\Users\csio\doa_project\features"  
 
-# 0) Clear out old features
 if os.path.isdir(features_dir):
     shutil.rmtree(features_dir)
 os.makedirs(features_dir, exist_ok=True)
 
-# 1) Correct STFT settings for fs = 20 kHz
 fs       = 20000
 nperseg  = 1024
 noverlap = 512
 eps      = 1e-8
 
-# 2) Build list of .npy audio stacks
 files = [f for f in os.listdir(input_dir) if f.lower().endswith(".npy")]
 print(f"dB-scaled STFT → {len(files)} files | fs={fs}, nperseg={nperseg}, noverlap={noverlap}\n")
 
-# 3) Compute & save features
 for fname in tqdm(files, desc="Files", unit="file"):
-    data = np.load(os.path.join(input_dir, fname))  # shape: (4, 5000)
+    data = np.load(os.path.join(input_dir, fname))  
     stft_ch = []
     for ch in range(4):
         _, _, Zxx = stft(

@@ -5,33 +5,28 @@
 # from scipy.signal import stft
 # import random
 
-# # — ADJUST THIS to point at your .npy stacks folder — 
+
 # dataset_dir = r"C:\Users\csio\doa_project\dataset"  
 
-# # where to dump your PNGs
 # plots_dir = os.path.join(dataset_dir, "plots")
 # os.makedirs(plots_dir, exist_ok=True)
 
-# # STFT parameter candidates to compare (∆f, hop)
 # params = [
-#     (64,  32),   # Δf≈62.5 Hz, hop=16 ms → ~16 frames/chunk
-#     (128, 64),   # Δf≈31 Hz,   hop=32 ms → ~8 frames/chunk
-#     (256, 128),  # Δf≈15.6 Hz, hop=64 ms → ~4 frames/chunk
-#     (512, 256),  # Δf≈7.8 Hz,  hop=128 ms → ~2 frames/chunk
+#     (64,  32),   
+#     (128, 64),   
+#     (256, 128),  
+#     (512, 256), 
 # ]
 
-# # list all .npy stacks
 # files = [f for f in os.listdir(dataset_dir) if f.lower().endswith(".npy")]
 # if not files:
 #     raise RuntimeError(f"No .npy files found in {dataset_dir!r}")
 
-# # show numbered list
 # print(f"Found {len(files)} feature files.\n")
 # for idx, fn in enumerate(files):
 #     print(f"  [{idx:3d}] {fn}")
 # print()
 
-# # prompt user
 # choice = input("Enter an index (or full filename) from above (leave blank for random): ").strip()
 
 # if choice == "":
@@ -49,14 +44,12 @@
 
 # print("→ Visualizing:", choice)
 
-# # load only the first mic channel
 # full_path = os.path.join(dataset_dir, choice)
-# data      = np.load(full_path)   # shape (4, N)
-# signal    = data[0]              # channel 0
+# data      = np.load(full_path)   
+# signal    = data[0]              
 
-# fs = 4000  # sampling rate
+# fs = 4000  
 
-# # loop through your STFT settings
 # for nperseg, noverlap in params:
 #     f, t, Zxx = stft(
 #         signal, fs=fs,
@@ -88,34 +81,28 @@ import matplotlib.pyplot as plt
 from scipy.signal import stft
 import random
 
-# — ADJUST THIS to point at your .npy stacks folder — 
 dataset_dir = r"C:\Users\csio\doa_project\dataset"  
 
-# where to dump your PNGs
 plots_dir = os.path.join(dataset_dir, "plots")
 os.makedirs(plots_dir, exist_ok=True)
 
-# STFT parameter candidates to compare (nperseg, noverlap)
 params = [
-    (64,  32),     # Δf ≈ 312.5 Hz, ~16 frames
-    (128, 64),     # Δf ≈ 156.2 Hz, ~8 frames
-    (256, 128),    # Δf ≈ 78.1 Hz, ~4 frames
-    (512, 256),    # Δf ≈ 39.1 Hz, ~2 frames
-    (1024, 512),   # Δf ≈ 19.5 Hz, ~1 frame
+    (64,  32),    
+    (128, 64),     
+    (256, 128),    
+    (512, 256),    
+    (1024, 512),   
 ]
 
-# list all .npy stacks
 files = [f for f in os.listdir(dataset_dir) if f.lower().endswith(".npy")]
 if not files:
     raise RuntimeError(f"No .npy files found in {dataset_dir!r}")
 
-# show numbered list
 print(f"Found {len(files)} feature files.\n")
 for idx, fn in enumerate(files):
     print(f"  [{idx:3d}] {fn}")
 print()
 
-# prompt user
 choice = input("Enter an index (or full filename) from above (leave blank for random): ").strip()
 
 if choice == "":
@@ -133,14 +120,12 @@ elif choice not in files:
 
 print("→ Visualizing:", choice)
 
-# load only the first mic channel
 full_path = os.path.join(dataset_dir, choice)
 data      = np.load(full_path)   # shape (4, N)
 signal    = data[0]              # channel 0
 
-fs = 20000  # updated sampling rate
+fs = 20000  
 
-# loop through your STFT settings
 for nperseg, noverlap in params:
     f, t, Zxx = stft(
         signal, fs=fs,

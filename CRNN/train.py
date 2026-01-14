@@ -14,10 +14,9 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 
-# ─── CONFIG ─────────────────────────────────────────────────────────────────────
 PROJECT      = r"C:\Users\csio\doa_project"
-FEATURES_DIR = os.path.join(PROJECT, "features")   # your 4×F×T .npy folder
-LABELS_CSV   = os.path.join(PROJECT, "labels.csv") # regenerated CSV
+FEATURES_DIR = os.path.join(PROJECT, "features")  
+LABELS_CSV   = os.path.join(PROJECT, "labels.csv") 
 OUTPUT_DIR   = os.path.join(PROJECT, "outputs")
 CHECKPOINT   = os.path.join(PROJECT, "best_crnn.pt")
 HISTORY_PATH = os.path.join(PROJECT, "history.pkl")
@@ -28,9 +27,8 @@ EPOCHS       = 30
 WD           = 1e-4
 DEVICE       = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-torch.backends.cudnn.benchmark = True  # speed up on GPU
+torch.backends.cudnn.benchmark = True 
 
-# ─── DATASET ────────────────────────────────────────────────────────────────────
 class STFTDataset(Dataset):
     def __init__(self, features_dir, filenames, labels, noise_files=None):
         self.features_dir = features_dir
@@ -46,7 +44,6 @@ class STFTDataset(Dataset):
         x_np  = np.load(os.path.join(self.features_dir, fn)).astype(np.float32)
         label = self.labels[idx]
 
-        # optional: mix in a random noise example
         if self.noise_files and label != 0 and random.random() < 0.3:
             nf   = random.choice(self.noise_files)
             n_np = np.load(os.path.join(self.features_dir, nf)).astype(np.float32)
@@ -54,12 +51,10 @@ class STFTDataset(Dataset):
             x_np = x_np + n_np * snr
 
         return torch.from_numpy(x_np), torch.tensor(label, dtype=torch.long)
-
-# ─── MODEL ──────────────────────────────────────────────────────────────────────
+    
 class CRNN(nn.Module):
     def __init__(self, in_ch=4, n_cls=13, dropout=0.5):
         super().__init__()
-        # CNN stack
         layers, c = [], in_ch
         for out in (32,64,128):
             layers += [
@@ -71,25 +66,21 @@ class CRNN(nn.Module):
             c = out
         self.cnn = nn.Sequential(*layers)
 
-        # GRU deferred init
         self.gru    = None
         self.hid    = 128
         self.bidir  = True
         self.layers = 2
         self.dp     = dropout
 
-        # Classifier
         self.classifier = nn.Sequential(
             nn.Dropout(dropout),
             nn.Linear(self.hid * (2 if self.bidir else 1), n_cls)
         )
 
     def forward(self, x):
-        # x: (B,4,F,T)
-        c = self.cnn(x)               # → (B,Cn,F',T')
+        c = self.cnn(x)              
         B, Cn, Fp, Tp = c.shape
 
-        # init GRU first time
         if self.gru is None:
             self.gru = nn.GRU(
                 input_size=Cn*Fp,
@@ -100,12 +91,10 @@ class CRNN(nn.Module):
                 dropout=self.dp if self.layers>1 else 0.0
             ).to(x.device)
 
-        # reshape for GRU: (B, T', Cn*F')
         seq, _ = self.gru(c.permute(0,3,1,2).reshape(B, Tp, Cn*Fp))
         final  = seq[:, -1, :]        # last time–step
         return self.classifier(final)
 
-# ─── HELPERS ────────────────────────────────────────────────────────────────────
 def save_confusion_matrix(cm, labels, path):
     plt.figure(figsize=(8,8))
     plt.imshow(cm, cmap=plt.cm.Blues, interpolation='nearest')
@@ -120,16 +109,13 @@ def save_confusion_matrix(cm, labels, path):
     plt.savefig(path, dpi=300)
     plt.close()
 
-# ─── MAIN ───────────────────────────────────────────────────────────────────────
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # 1) load labels & filter elevation=0° + noise
     df  = pd.read_csv(LABELS_CSV)
     df0 = df[(df.elevation==0)|(df.elevation==-1)].reset_index(drop=True)
     fns, az = df0.filename.values, df0.azimuth.values
 
-    # build mapping az→class idx
     dist    = Counter(az)
     ordered = OrderedDict(sorted(dist.items(), key=lambda x:(x[0]<0, x[0])))
     unique  = list(ordered.keys())
@@ -141,7 +127,6 @@ def main():
         lbl = "Noise" if a<0 else f"{a}°"
         print(f"  {lbl:<5s} {c}")
 
-    # 2) stratified split 80/10/10
     s1 = StratifiedShuffleSplit(1, test_size=0.10, random_state=42)
     tv_idx, test_idx = next(s1.split(fns, cls))
     s2 = StratifiedShuffleSplit(1, test_size=0.1111, random_state=42)
@@ -150,43 +135,31 @@ def main():
     splits = {'train':len(train_idx), 'val':len(val_idx), 'test':len(test_idx)}
     print("Splits:", splits)
 
-    # ─── Save Train/Val/Test splits to CSV ────────────────────────────────────────
     split_dir = os.path.join(PROJECT, "splits")
     os.makedirs(split_dir, exist_ok=True)
 
-    # df0 is your filtered DataFrame of elevation==0 or noise
-    # fns = df0.filename.values
-
-    # compute *absolute* indices into df0
     train_abs = tv_idx[train_idx]
     val_abs   = tv_idx[val_idx]
     test_abs  = test_idx
 
-    # grab those rows
     df_train = df0.iloc[train_abs][["filename","azimuth","elevation"]]
     df_val   = df0.iloc[val_abs][["filename","azimuth","elevation"]]
     df_test  = df0.iloc[test_abs][["filename","azimuth","elevation"]]
 
-    # write them out
     df_train.to_csv(os.path.join(split_dir, "train_split.csv"), index=False)
     df_val.to_csv( os.path.join(split_dir, "val_split.csv"),   index=False)
     df_test.to_csv(os.path.join(split_dir, "test_split.csv"),  index=False)
 
     print(f"→ wrote {len(df_train)} / {len(df_val)} / {len(df_test)} rows to {split_dir}")
 
-
-    # 3) collect noise filenames (label==0)
     noise_files = [fn for fn,l in zip(fns, az) if l==-1]
 
-    # 4) datasets & loaders
     train_ds = STFTDataset(FEATURES_DIR, fns[tv_idx][train_idx], cls[tv_idx][train_idx], noise_files)
     val_ds   = STFTDataset(FEATURES_DIR, fns[tv_idx][val_idx],   cls[tv_idx][val_idx])
     test_ds  = STFTDataset(FEATURES_DIR, fns[test_idx],          cls[test_idx])
 
-    # weighted sampler to handle class‐imbalance
     tcounts = np.bincount(cls[tv_idx][train_idx])
     samp_w  = 1.0 / tcounts
-    # clamp noise weight at ≤5× next highest
     noise_cls = az2cls[-1]
     nw = samp_w[noise_cls]
     other_max = np.max(np.delete(samp_w, noise_cls))
@@ -205,7 +178,6 @@ def main():
                           num_workers=4 if DEVICE.type=="cuda" else 0,
                           pin_memory=(DEVICE.type!="cpu"))
 
-    # 5) model / loss / optimizer / scheduler
     model     = CRNN(in_ch=4, n_cls=len(unique)).to(DEVICE)
     class_w   = torch.tensor(1.0/tcounts, dtype=torch.float32, device=DEVICE)
     criterion = nn.CrossEntropyLoss(weight=class_w)
@@ -218,9 +190,7 @@ def main():
 
     history, best_val = {'train_loss':[], 'val_loss':[], 'train_acc':[], 'val_acc':[]}, 0.0
 
-    # 6) training loop
     for epoch in range(1, EPOCHS+1):
-        # — train —
         model.train()
         running_loss = correct = total = 0
         for x,y in train_ld:
@@ -239,7 +209,6 @@ def main():
 
         tr_l, tr_a = running_loss/total, correct/total
 
-        # — validate —
         model.eval()
         vloss = vcorrect = vtot = 0
         with torch.no_grad():
@@ -260,12 +229,10 @@ def main():
 
         print(f"Epoch {epoch:02d}/{EPOCHS}  Train: loss={tr_l:.3f}, acc={tr_a:.3f}  |  Val: loss={v_l:.3f}, acc={v_a:.3f}")
 
-        # save best
         if v_a > best_val:
             best_val = v_a
             torch.save({'model_state_dict':model.state_dict()}, CHECKPOINT)
 
-    # 7) save history & curves
     pickle.dump(history, open(HISTORY_PATH, "wb"))
     plt.figure(); plt.plot(history['train_loss'], label='Train Loss')
     plt.plot(history['val_loss'], label='Val Loss'); plt.legend(); plt.title("Loss")
@@ -275,7 +242,6 @@ def main():
     plt.plot(history['val_acc'], label='Val Acc'); plt.legend(); plt.title("Accuracy")
     plt.tight_layout(); plt.savefig(os.path.join(OUTPUT_DIR,"acc.png"), dpi=300); plt.close()
 
-    # 8) final test
     model.load_state_dict(torch.load(CHECKPOINT)['model_state_dict'])
     model.eval()
     all_p, all_t = [], []
@@ -295,7 +261,6 @@ def main():
     labels_txt = ["Noise"] + [f"{a}°" for a in unique if a>=0]
     save_confusion_matrix(cm, labels_txt, os.path.join(OUTPUT_DIR,"confusion_matrix.png"))
 
-    # ─── 9) dump per-file test results for inspection ─────────────────────────
     df_out = pd.DataFrame({
         "filename":   test_ds.filenames,
         "true_azimuth":  [ unique[i] for i in y_true ],
@@ -308,7 +273,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    
-
-    

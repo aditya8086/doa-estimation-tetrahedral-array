@@ -2,7 +2,6 @@ import os
 import numpy as np
 from collections import Counter
 
-# — PARAMETERS —
 chunks_dir  = r"C:\Users\csio\doa_project\chunks"
 dataset_dir = r"C:\Users\csio\doa_project\dataset"
 
@@ -13,7 +12,7 @@ def count_wav_chunks():
     ]
     print(f"Total .wav chunks: {len(wav_files)}\n")
 
-    # Count by prefix (e.g. dp010_base1, Noise, etc.)
+    # Count by prefix 
     prefix_counts = Counter(f.split("_chunk")[0] for f in wav_files)
     print("Chunks per source file:")
     for prefix, cnt in prefix_counts.most_common():
@@ -34,7 +33,6 @@ def count_npy_stacks():
 
     # Breakdown by elevation
     elev_counts = Counter(f[2: f.find("0") or 2] for f in doa)  
-    # (this works since your dp files begin with e.g. dp0, dp30, dp60)
     print("\nDOA stacks by elevation:")
     for elev, cnt in elev_counts.items():
         print(f"  {elev:>2s}° : {cnt}")

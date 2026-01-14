@@ -3,21 +3,14 @@ import os
 import re
 import pandas as pd
 
-# — POINT THIS AT YOUR STFT FEATURE FOLDER —
 feat_dir   = r"C:\Users\csio\doa_project\features"
-# — AND WHERE TO SAVE YOUR CSV —
 output_csv = r"C:\Users\csio\doa_project\labels.csv"
 
-# 1) sanity-check how many .npy files we have
 all_files = [f for f in os.listdir(feat_dir) if f.lower().endswith(".npy")]
 print(f"Found {len(all_files)} feature files in {feat_dir}")
 
-# (Remove or update the old fixed-count assertion)
-# assert len(all_files) == 70576, "Unexpected file count! Check feat_dir."
-
 rows = []
 
-# 2) label the DP files
 dp_pat = re.compile(r"^dp(0|30|60)([1-9]|1[0-2])_chunk(\d{4})\.npy$")
 for fn in all_files:
     m = dp_pat.match(fn)
@@ -33,7 +26,7 @@ for fn in all_files:
         })
         continue
 
-    # 3) label the noise files
+    # label the noise files
     if fn.startswith("Noise_chunk") and fn.endswith(".npy"):
         rows.append({
             "filename":  fn,
@@ -41,15 +34,11 @@ for fn in all_files:
             "elevation": -1
         })
         continue
-
-    # 4) anything else is unexpected
     raise RuntimeError(f"Unrecognized file name: {fn}")
 
-# 5) write out and confirm
 df = pd.DataFrame(rows)
 df.to_csv(output_csv, index=False)
 print(f"Wrote {len(df)} rows to {output_csv}")
 
-# final sanity check
 if len(df) != len(all_files):
     print(f"Warning: row count ({len(df)}) != file count ({len(all_files)})")

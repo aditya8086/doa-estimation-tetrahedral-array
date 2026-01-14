@@ -1,0 +1,26 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Data & features
+data/*
+!data/README.md
+
+*.npy
+*.npz
+*.csv
+*.wav
+*.zip
+
+# Model checkpoints
+*.pt
+*.pth
+
+# Training artifacts
+checkpoints/
+outputs/
+logs/
+
+# Editor / OS files
+.DS_Store
+.vscode/

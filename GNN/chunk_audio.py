@@ -2,7 +2,6 @@ import os
 import numpy as np
 from scipy.io import wavfile
 
-# ─── CONFIG ───────────────────────────────────────────────────────────────
 INPUT_DIR = r"C:\Users\csio\projects\new_gnn_project\NEW DATA"
 OUTPUT_DIR = r"C:\Users\csio\projects\new_gnn_project\4ChannelStackedChunk"
 N_FFT = 2048
@@ -10,14 +9,12 @@ HOP = 1024
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ─── DISCOVER FILES ────────────────────────────────────────────────────────
 all_files = []
 for root, _, filenames in os.walk(INPUT_DIR):
     for f in filenames:
         if f.endswith(".wav") and f.startswith(("dp0", "dp30", "dp60", "Noise")):
             all_files.append(os.path.join(root, f))
 
-# ─── GROUP PREFIXES ────────────────────────────────────────────────────────
 dp_prefixes = sorted({
     os.path.basename(f).split("_", 1)[0][2:] for f in all_files
     if os.path.basename(f).startswith(("dp0", "dp30", "dp60"))
@@ -32,7 +29,6 @@ for f in all_files:
             mic = parts[1].split(".")[0]
             noise_groups[mic] = f
 
-# ─── CHUNK DP FILES ────────────────────────────────────────────────────────
 for p in dp_prefixes:
     print(f"\nProcessing dp{p}...")
 
@@ -65,7 +61,6 @@ for p in dp_prefixes:
 
     print(f"Saved {num_frames} chunks for dp{p}")
 
-# ─── CHUNK NOISE FILES ─────────────────────────────────────────────────────
 if len(noise_groups) == 4:
     print(f"\nProcessing Noise...")
     sigs = []

@@ -5,13 +5,11 @@ from collections import Counter
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-# ─── CONFIG ─────────────────────────────────────────────────────────────────────
-feat_dir   = r"C:\Users\csio\doa_project\features_complex"  # ← point this to your features folder
-output_dir = r"C:\Users\csio\doa_project\plots_features_complex"     # ← where to save the example plot
+feat_dir   = r"C:\Users\csio\doa_project\features_complex"  
+output_dir = r"C:\Users\csio\doa_project\plots_features_complex"  
 
 os.makedirs(output_dir, exist_ok=True)
 
-# ─── 1) Scan all .npy feature files and collect their shapes ────────────────────
 shapes = Counter()
 total_files = 0
 
@@ -22,37 +20,31 @@ for fname in tqdm(os.listdir(feat_dir), desc="Scanning features"):
     arr = np.load(os.path.join(feat_dir, fname))
     shapes[arr.shape] += 1
 
-# ─── 2) Print how many were processed and list each unique shape ────────────────
 print(f"\nProcessed {total_files} feature files.\n")
 print("Unique shapes and their counts:")
 for shape, cnt in shapes.items():
     print(f"  {shape}: {cnt}")
 
-# ─── 3) If you have any (4, F, T) shapes, print out F and T explicitly ──────────
 print("\nExtracted frequency/time dims from (4,F,T) shapes:")
 for shape in shapes:
     if len(shape) == 3 and shape[0] == 4:
         _, F, T = shape
         print(f"  Found (4, {F}, {T})  →  F = {F},  T = {T}")
 
-# ─── 4) Visualize one example file (real / imag / mag) ─────────────────────────
-#    You can change the index or pick randomly if you like:
 files = sorted(f for f in os.listdir(feat_dir) if f.lower().endswith(".npy"))
 if not files:
     raise RuntimeError(f"No .npy files found in {feat_dir!r}")
 
-# Pick a sample (here: index 0; change or use random.choice(files))
 sample_fname = files[0]
 sample_path  = os.path.join(feat_dir, sample_fname)
 tensor       = np.load(sample_path)
 
-# Determine if this is (4,F,T,2) or (4,F,T):
 if tensor.ndim == 4 and tensor.shape[0] == 4 and tensor.shape[-1] == 2:
     # Complex features: (4, F, T, 2)
     is_complex = True
     F, T = tensor.shape[1], tensor.shape[2]
 elif tensor.ndim == 3 and tensor.shape[0] == 4:
-    # Magnitude‐only features: (4, F, T)
+    # Magnitude only features: (4, F, T)
     is_complex = False
     F, T = tensor.shape[1], tensor.shape[2]
 else:
@@ -87,7 +79,6 @@ if is_complex:
     plt.tight_layout(rect=[0,0,1,0.96])
 
 else:
-    # magnitude‐only: just plot in a 4×1 grid
     fig, axes = plt.subplots(4, 1, figsize=(8, 12))
     for mic in range(4):
         mag_only = tensor[mic, :, :]  # shape (F, T)
@@ -100,7 +91,6 @@ else:
     plt.suptitle(f"STFT (magnitude only) → {sample_fname}", fontsize=16)
     plt.tight_layout(rect=[0,0,1,0.96])
 
-# Save the figure at 300 dpi
 out_png = os.path.join(output_dir, sample_fname.replace(".npy", ".png"))
 plt.savefig(out_png, dpi=300)
 plt.close()

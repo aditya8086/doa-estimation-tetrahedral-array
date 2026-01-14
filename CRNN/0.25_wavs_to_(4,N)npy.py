@@ -7,18 +7,14 @@ import soundfile as sf
 from collections import defaultdict
 from tqdm import tqdm
 
-# — 0) Reset the dataset folder —
 dataset_dir   = r"C:\Users\csio\doa_project\dataset"
 chunks_folder = r"C:\Users\csio\doa_project\chunks"
 
-# (uncomment to wipe completely each run)
-# if os.path.isdir(dataset_dir): shutil.rmtree(dataset_dir)
 os.makedirs(dataset_dir, exist_ok=True)
 
-# — Which 4 mics must be present per chunk —
 required_mics = ("base1","base2","base3","top")
 
-# — 1) DP (DOA) regex & grouping —
+# DP (DOA) regex & grouping
 pat_dp    = re.compile(
     r"^dp(0|30|60)"            # elevation
     r"([1-9]|1[0-2])_"         # point 1–12
@@ -33,18 +29,17 @@ for fn in os.listdir(chunks_folder):
     elev, point, mic, idx = m.groups()
     groups_dp[(int(elev), int(point), idx)][mic] = fn
 
-# — 2) Noise regex & grouping —
-# now matches Noise_base1_chunk0001.wav, etc.
+# Noise regex & grouping 
 pat_noise    = re.compile(r"^Noise_(base1|base2|base3|top)_chunk(\d+)\.wav$")
 groups_noise = defaultdict(dict)
 
 for fn in os.listdir(chunks_folder):
     m = pat_noise.match(fn)
     if not m: continue
-    mic, idx = m.groups()   # mic is one of base1…top, idx is chunk number
+    mic, idx = m.groups()  
     groups_noise[idx][mic] = fn
 
-# — 3) Stack & save both DP and Noise into the same folder —
+# Stack & save both DP and Noise into the same folder —
 
 saved_dp = skipped_dp = 0
 for (elev, point, idx), files in tqdm(list(groups_dp.items()), desc="Stacking DOA", unit="item"):
@@ -74,7 +69,6 @@ for idx, files in tqdm(list(groups_noise.items()), desc="Stacking Noise", unit="
     else:
         skipped_n += 1
 
-# — 4) Report —
 print(f"\nDOA stacks saved:   {saved_dp}, skipped (missing mics): {skipped_dp}")
 print(f"Noise stacks saved: {saved_n}, skipped (missing mics): {skipped_n}")
 print("All .npy files are now in:", dataset_dir)

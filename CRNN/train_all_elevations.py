@@ -16,24 +16,22 @@ from sklearn.metrics import confusion_matrix, classification_report, accuracy_sc
 
 from torchinfo import summary
 
-# ─── CONFIG ─────────────────────────────────────────────────────────────────────
 PROJECT         = r"C:\Users\csio\doa_project"
-FEATURES_DIR    = os.path.join(PROJECT, "features")       # 4×F×T .npy
-LABELS_CSV      = os.path.join(PROJECT, "labels.csv")     # master labels.csv
-OUTPUT_DIR      = os.path.join(PROJECT, "outputs_all")    # NEW outputs
+FEATURES_DIR    = os.path.join(PROJECT, "features")       
+LABELS_CSV      = os.path.join(PROJECT, "labels.csv")     
+OUTPUT_DIR      = os.path.join(PROJECT, "outputs_all")    
 CHECKPOINT_PATH = os.path.join(OUTPUT_DIR, "best_all.pt")
 HISTORY_PATH    = os.path.join(OUTPUT_DIR, "history_all.pkl")
 SPLIT_DIR       = os.path.join(PROJECT, "splits_all")
 
 BATCH_SIZE = 8
-LR         = 1e-4                # Lowered for AdamW
+LR         = 1e-4              
 EPOCHS     = 50
 WD         = 1e-4
 DEVICE     = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 torch.backends.cudnn.benchmark = True
 
-# ─── DATASET ────────────────────────────────────────────────────────────────────
 class STFTDataset(Dataset):
     def __init__(self, features_dir, filenames, labels, noise_files=None):
         self.features_dir = features_dir
@@ -48,7 +46,6 @@ class STFTDataset(Dataset):
         fn    = self.filenames[idx]
         x_np  = np.load(os.path.join(self.features_dir, fn)).astype(np.float32)
         label = self.labels[idx]
-        # optional noise mix
         if self.noise_files and label == noise_label and random.random() < 0.3:
             nf   = random.choice(self.noise_files)
             n_np = np.load(os.path.join(self.features_dir, nf)).astype(np.float32)
@@ -56,7 +53,6 @@ class STFTDataset(Dataset):
             x_np = x_np + n_np * snr
         return torch.from_numpy(x_np), torch.tensor(label, dtype=torch.long)
 
-# ─── MODEL ──────────────────────────────────────────────────────────────────────
 class CRNN(nn.Module):
     def __init__(self, in_ch=4, n_cls=37, dropout=0.5):
         super().__init__()
@@ -83,7 +79,7 @@ class CRNN(nn.Module):
         )
 
     def forward(self, x):
-        c = self.cnn(x)                     # (B,128,F',T')
+        c = self.cnn(x)                 
         B, Cn, Fp, Tp = c.shape
         if self.gru is None:
             self.gru = nn.GRU(
@@ -95,7 +91,6 @@ class CRNN(nn.Module):
         seq, _ = self.gru(c.permute(0,3,1,2).reshape(B, Tp, Cn*Fp))
         return self.classifier(seq[:,-1,:])
 
-# ─── HELPERS ────────────────────────────────────────────────────────────────────
 def save_confusion_matrix(cm, labels, path):
     plt.figure(figsize=(12,10))
     plt.imshow(cm, cmap=plt.cm.Blues, interpolation='nearest')
@@ -109,27 +104,23 @@ def save_confusion_matrix(cm, labels, path):
     plt.savefig(path, dpi=300)
     plt.close()
 
-# Global placeholder for noise class index
 noise_label = None
 
-# ─── MAIN ───────────────────────────────────────────────────────────────────────
 def main():
     global noise_label
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(SPLIT_DIR,   exist_ok=True)
 
-    # 1) load & keep ALL elevations (0°, 30°, 60°) or noise (-1)
     df  = pd.read_csv(LABELS_CSV)
     df0 = df[df.elevation.isin([0,30,60]) | (df.elevation == -1)].reset_index(drop=True)
     fns, elev, az = df0.filename.values, df0.elevation.values, df0.azimuth.values
 
-    # 2) build ordered unique classes (elevation, azimuth) pairs
     dist    = Counter(zip(elev, az))
     ordered = OrderedDict(
         sorted(dist.items(), key=lambda x:(x[0][0]<0, x[0][0], x[0][1]))
     )
-    unique_pairs = list(ordered.keys())               # 37 total classes
+    unique_pairs = list(ordered.keys())            
     idx2pair     = {i: ea for i, ea in enumerate(unique_pairs)}
     idx2label    = {
         i: ("Noise" if ea == (-1,-1) else f"{ea[0]}°/{ea[1]}°")
@@ -138,7 +129,6 @@ def main():
     cls_map = {ea: i for i, ea in idx2pair.items()}
     cls     = np.array([cls_map[(e,a)] for e,a in zip(elev, az)], dtype=np.int64)
 
-    # identify noise class index
     noise_label = cls_map[(-1, -1)]
 
     print("\nClass counts (all elevations + noise):")
@@ -146,16 +136,11 @@ def main():
         lbl = "Noise" if (e,a) == (-1,-1) else f"{e}°/{a}°"
         print(f"  {lbl:12s} {cnt}")
 
-    # 3) stratified 70/15/15 split
-    # 3a) first, hold out 15% for test
     s1 = StratifiedShuffleSplit(n_splits=1, test_size=0.15, random_state=42)
     temp_idx, test_idx = next(s1.split(fns, cls))
-    # 3b) then split the 85% (temp_idx) into 70/15 (train/val)
-    # 70/85 ≈ 0.8235, so val is (1 - 0.8235) ≈ 0.1765 of temp
     s2 = StratifiedShuffleSplit(n_splits=1, test_size=0.1765, random_state=42)
     train_sub, val_sub = next(s2.split(fns[temp_idx], cls[temp_idx]))
 
-    # convert to absolute indices
     train_idx = temp_idx[train_sub]
     val_idx   = temp_idx[val_sub]
 
@@ -165,7 +150,6 @@ def main():
     print(f"  Val:   {len(val_idx)}")
     print(f"  Test:  {len(test_idx)}")
 
-    # 4) save CSVs of these splits into SPLIT_DIR
     train_df = pd.DataFrame({
         "filename":  df0.filename.values[train_idx],
         "azimuth":   df0.azimuth.values[train_idx],
@@ -187,13 +171,10 @@ def main():
     })
     test_df.to_csv(os.path.join(SPLIT_DIR, "test_all.csv"), index=False)
 
-    # 5) collect noise filenames for augmentation
     noise_files = [
         fn for fn, (e,a) in zip(fns, zip(elev, az))
         if (e,a) == (-1,-1)
     ]
-
-    # 6) create datasets & loaders
     train_ds = STFTDataset(
         FEATURES_DIR,
         df0.filename.values[train_idx],
@@ -211,12 +192,10 @@ def main():
         cls[test_idx]
     )
 
-    # 7) weighted sampler for training
     train_labels = cls[train_idx]
     tcounts = np.bincount(train_labels, minlength=len(unique_pairs))
     samp_w  = 1.0 / tcounts.astype(np.float32)
 
-    # clamp noise weight at ≤5× next-highest
     nw = samp_w[noise_label]
     other_max = np.max(np.delete(samp_w, noise_label))
     samp_w[noise_label] = min(nw, other_max * 5.0)
@@ -242,8 +221,6 @@ def main():
         num_workers=4 if DEVICE.type == "cuda" else 0,
         pin_memory=(DEVICE.type != "cpu")
     )
-
-    # 8) instantiate model / loss / optimizer / scheduler
     model = CRNN(in_ch=4, n_cls=len(unique_pairs)).to(DEVICE)
     summary(model, input_size=(BATCH_SIZE, 4, 513, 9))  # Added summary
     class_w   = torch.tensor(1.0 / tcounts, dtype=torch.float32, device=DEVICE)
@@ -266,7 +243,6 @@ def main():
         'train_acc':  [], 'val_acc': []
     }, 0.0
 
-    # 9) training loop
     for ep in range(1, EPOCHS + 1):
         # — train —
         model.train()
@@ -287,7 +263,6 @@ def main():
         tr_l = total_loss / total
         tr_a = correct / total
 
-        # — validate —
         model.eval()
         vloss = vcorrect = vtot = 0
         with torch.no_grad():
@@ -313,14 +288,12 @@ def main():
             f"Train: loss={tr_l:.3f}, acc={tr_a:.3f}  |  "
             f"Val:   loss={v_l:.3f}, acc={v_a:.3f}"
         )
-        # Step the scheduler based on validation loss
         scheduler.step(v_l)
 
         if v_a > best_val:
             best_val = v_a
             torch.save({'model_state_dict': model.state_dict()}, CHECKPOINT_PATH)
 
-    # 10) save history & plots
     pickle.dump(history, open(HISTORY_PATH, "wb"))
     plt.figure()
     plt.plot(history['train_loss'], label='Train Loss')
@@ -338,7 +311,6 @@ def main():
     plt.savefig(os.path.join(OUTPUT_DIR, "acc_all.png"), dpi=300)
     plt.close()
 
-    # 11) final test & confusion matrix
     model.load_state_dict(torch.load(CHECKPOINT_PATH)['model_state_dict'])
     model.eval()
     all_preds, all_trues = [], []
@@ -358,7 +330,6 @@ def main():
     save_confusion_matrix(cm, labels, os.path.join(OUTPUT_DIR, "cm_all.png"))
     print(classification_report(y_true, y_pred, digits=4))
 
-    # 12) dump per-file results
     df_out = pd.DataFrame({
         "filename":   test_ds.filenames,
         "true_class": [idx2label[i] for i in y_true],

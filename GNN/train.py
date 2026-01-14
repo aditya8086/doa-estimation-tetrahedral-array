@@ -9,7 +9,6 @@ from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# ─── CONFIG ───────────────────────────────────────────────────
 PAIR_DIR    = r"C:\Users\csio\projects\new_gnn_project\pairs"
 SPLIT_DIR   = r"C:\Users\csio\projects\new_gnn_project\splits"
 OUTPUT_DIR  = r"C:\Users\csio\projects\new_gnn_project\outputs_normalized"
@@ -18,7 +17,6 @@ EPOCHS      = 100
 LR          = 1e-3
 DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ─── Dataset ──────────────────────────────────────────────────
 class DOADataset(Dataset):
     def __init__(self, csv_path, pair_dir):
         self.df = pd.read_csv(csv_path)
@@ -39,7 +37,6 @@ class DOADataset(Dataset):
         ], dtype=np.float32)
         return torch.tensor(x), torch.tensor(y)
 
-# ─── Models ──────────────────────────────────────────────────
 class PairwiseMLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, out_dim):
         super().__init__()
@@ -69,8 +66,7 @@ class FusionMLP(nn.Module):
 
     def forward(self, x):
         return self.mlp(x.view(x.size(0), -1))
-
-# ─── Training ──────────────────────────────────────────────────
+    
 def train():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -135,7 +131,6 @@ def train():
     plt.savefig(os.path.join(OUTPUT_DIR, "loss_curve.png"))
     plt.close()
 
-    # Evaluation
     pair_mlp.load_state_dict(torch.load(os.path.join(OUTPUT_DIR, "best_model.pt"))["pairwise"])
     fusion_mlp.load_state_dict(torch.load(os.path.join(OUTPUT_DIR, "best_model.pt"))["fusion"])
     pair_mlp.eval(); fusion_mlp.eval()
@@ -180,14 +175,11 @@ def train():
     pred_df.to_csv(os.path.join(OUTPUT_DIR, "test_predictions.csv"), index=False)
     print("Saved test predictions to CSV.")
 
-    # Define grid
     az_bins = list(range(0, 360, 30))   # 0° to 330°
     el_bins = [0, 30, 60]               # 3 elevations
 
-    # Initialize MAE matrix [elevation_idx][azimuth_idx]
     mae_grid = np.full((len(el_bins), len(az_bins)), np.nan)
 
-    # Fill grid with average azimuth MAE at each (az, el)
     for i, el in enumerate(el_bins):
         for j, az in enumerate(az_bins):
             mask = (pred_df["azimuth_true"] == az) & (pred_df["elevation_true"] == el)
@@ -195,7 +187,6 @@ def train():
                 az_err = np.abs(pred_df.loc[mask, "azimuth_true"] - pred_df.loc[mask, "azimuth_pred"])
                 mae_grid[i, j] = az_err.mean()
 
-    # Plot
     plt.figure(figsize=(10, 3))
     sns.heatmap(mae_grid, annot=True, fmt=".1f", cmap="YlOrRd", xticklabels=az_bins, yticklabels=el_bins, cbar_kws={'label': 'Azimuth MAE (°)'})
     plt.xlabel("Azimuth (°)")

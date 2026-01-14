@@ -4,15 +4,12 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedShuffleSplit
 
-# CONFIG
 PAIR_DIR = r"C:\Users\csio\projects\new_gnn_project\pairs"
 CSV_DIR = r"C:\Users\csio\projects\new_gnn_project\splits"
 os.makedirs(CSV_DIR, exist_ok=True)
 
-# ─── Collect all filenames and labels using strict regex ─────────────
 file_rows = []
 
-# Pattern: dp{elevation: 0|30|60}{point: 1-12}_chunkXXXXX_feat_pair.npy
 dp_pat = re.compile(r"^dp(0|30|60)([1-9]|1[0-2])_chunk\d+_feat_pair\.npy$")
 
 for fname in os.listdir(PAIR_DIR):
@@ -29,13 +26,10 @@ for fname in os.listdir(PAIR_DIR):
     else:
         print(f"Skipping unrecognized filename: {fname}")
 
-# Build dataframe
 df = pd.DataFrame(file_rows, columns=["filename", "azimuth", "elevation"])
 
-# ─── Stratification Label ─────────────────────────────────────────
 df["strat_label"] = df["azimuth"].astype(str) + "_" + df["elevation"].astype(str)
 
-# ─── Stratified Splitting ─────────────────────────────────────────
 sss1 = StratifiedShuffleSplit(n_splits=1, test_size=0.15, random_state=42)
 train_val_idx, test_idx = next(sss1.split(df, df["strat_label"]))
 
@@ -48,7 +42,6 @@ train_idx, val_idx = next(sss2.split(train_val_df, train_val_df["strat_label"]))
 train_df = train_val_df.iloc[train_idx].reset_index(drop=True)
 val_df   = train_val_df.iloc[val_idx].reset_index(drop=True)
 
-# ─── Save splits ───────────────────────────────────────────────────
 train_df.drop(columns=["strat_label"]).to_csv(os.path.join(CSV_DIR, "train.csv"), index=False)
 val_df.drop(columns=["strat_label"]).to_csv(os.path.join(CSV_DIR, "val.csv"), index=False)
 test_df.drop(columns=["strat_label"]).to_csv(os.path.join(CSV_DIR, "test.csv"), index=False)

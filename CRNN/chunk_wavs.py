@@ -2,14 +2,12 @@
 import os
 import soundfile as sf
 
-# — PARAMETERS —
-segment_duration_sec = 0.25   # ¼-second chunks
+segment_duration_sec = 0.25   
 input_folder  = r"C:\Users\csio\Downloads\NEW DATA"
 output_folder = r"C:\Users\csio\doa_project\chunks"
 
 os.makedirs(output_folder, exist_ok=True)
 
-# 0) sanity check
 wav_files = []
 for root, _, files in os.walk(input_folder):
     for f in files:
@@ -21,7 +19,6 @@ if not wav_files:
     print("No .wav files found. Please double-check your path!")
     exit(1)
 
-# 1) chunk each .wav
 for path in sorted(wav_files):
     fname = os.path.basename(path)
     signal, sr = sf.read(path)
