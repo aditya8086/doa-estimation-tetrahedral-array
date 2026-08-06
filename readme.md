@@ -12,9 +12,9 @@ This repository contains the complete implementation of two deep learning models
 
 | Model | Task | Metric | Result |
 |---|---|---|---|
-| **CRNN** | Discrete direction classification (36 classes) | Azimuth accuracy | **~97.8%** |
-| **GNN-inspired MLP** | Continuous azimuth–elevation regression | Azimuth MAE | **~2.3°** |
-| | | Elevation MAE | **~0.9°** |
+| **CRNN** | Discrete direction classification (36 classes) | Azimuth accuracy | **97.8%** |
+| **GNN-inspired MLP** | Continuous azimuth–elevation regression | Azimuth MAE | **2.3°** |
+| | | Elevation MAE | **0.9°** |
 | | | Threshold accuracy | **>97.7%** |
 
 The CRNN classifier proved highly accurate and stable in convergence across both Adam and AdamW optimizers and 4 / 8 / 16 kHz sampling rates. The GNN-inspired regressor is lightweight and parallelizable, and predicts continuous angles rather than discrete bins.
